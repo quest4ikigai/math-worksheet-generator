@@ -17,11 +17,11 @@ from typing import List, Tuple
 QuestionInfo = Tuple[int, str, int, int]
 
 OUTPUT_SIZE_CONFIG = {
-    'xsmall': {'font_size': 11, 'cell_height': 6, 'header_gap': 2, 'questions_per_page': 30, 'columns': 6},
-    'small': {'font_size': 13, 'cell_height': 8, 'header_gap': 3, 'questions_per_page': 24, 'columns': 6},
-    'medium': {'font_size': 15, 'cell_height': 10, 'header_gap': 4, 'questions_per_page': 20, 'columns': 5},
-    'large': {'font_size': 20, 'cell_height': 15, 'header_gap': 5, 'questions_per_page': 12, 'columns': 4},
-    'xlarge': {'font_size': 23, 'cell_height': 18, 'header_gap': 6, 'questions_per_page': 8, 'columns': 4},
+    'xsmall': {'font_size': 11, 'cell_height': 6, 'header_gap': 2, 'questions_per_page': 30, 'columns': 6, 'default_question_count': 90},
+    'small': {'font_size': 13, 'cell_height': 8, 'header_gap': 3, 'questions_per_page': 24, 'columns': 6, 'default_question_count': 72},
+    'medium': {'font_size': 15, 'cell_height': 10, 'header_gap': 4, 'questions_per_page': 20, 'columns': 5, 'default_question_count': 80},
+    'large': {'font_size': 20, 'cell_height': 15, 'header_gap': 5, 'questions_per_page': 12, 'columns': 4, 'default_question_count': 84},
+    'xlarge': {'font_size': 23, 'cell_height': 18, 'header_gap': 6, 'questions_per_page': 8, 'columns': 4, 'default_question_count': 80},
 }
 
 
@@ -413,8 +413,9 @@ def build_parser():
         '-q',
         '--question_count',
         type=int,
-        default='80',  # Must be a multiple of 40
-        help='total number of questions to generate (default: 80)',
+        default=None,
+        help='total number of questions to generate '
+             '(defaults to the selected output-size preset)',
     )
     parser.add_argument(
         '--output',
@@ -450,7 +451,10 @@ def parse_cli_args(argv=None):
     if not argv:
         parser.print_help()
         raise SystemExit(0)
-    return parser.parse_args(argv)
+    args = parser.parse_args(argv)
+    if args.question_count is None:
+        args.question_count = OUTPUT_SIZE_CONFIG[args.output_size]['default_question_count']
+    return args
 
 
 if __name__ == "__main__":

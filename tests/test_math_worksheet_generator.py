@@ -96,17 +96,21 @@ class TestStringMethods(unittest.TestCase):
         )
 
     def test_output_size_configures_questions_per_page(self):
-        for output_size, expected_questions, expected_columns in (
-            ('xsmall', 30, 6),
-            ('small', 24, 6),
-            ('medium', 20, 5),
-            ('large', 12, 4),
-            ('xlarge', 8, 4),
+        for output_size, expected_questions, expected_columns, expected_default_count in (
+            ('xsmall', 30, 6, 90),
+            ('small', 24, 6, 72),
+            ('medium', 20, 5, 80),
+            ('large', 12, 4, 84),
+            ('xlarge', 8, 4, 80),
         ):
             with self.subTest(output_size=output_size):
                 g = Mg(type_='x', max_number=9, question_count=1, output_size=output_size)
                 self.assertEqual(expected_questions, g.questions_per_page)
                 self.assertEqual(expected_questions, OUTPUT_SIZE_CONFIG[output_size]['questions_per_page'])
+                self.assertEqual(
+                    expected_default_count,
+                    OUTPUT_SIZE_CONFIG[output_size]['default_question_count']
+                )
                 self.assertEqual(expected_columns, g.num_x_cell)
 
     def test_print_header_section_places_score_on_right(self):
@@ -203,10 +207,29 @@ class TestStringMethods(unittest.TestCase):
     def test_parse_cli_args_defaults_output_size_to_medium(self):
         args = parse_cli_args(['--type', '+'])
         self.assertEqual('medium', args.output_size)
+        self.assertEqual(80, args.question_count)
+
+    def test_parse_cli_args_uses_question_count_default_for_each_output_size(self):
+        for output_size, expected_question_count in (
+            ('xsmall', 90),
+            ('small', 72),
+            ('medium', 80),
+            ('large', 84),
+            ('xlarge', 80),
+        ):
+            with self.subTest(output_size=output_size):
+                args = parse_cli_args(['--type', '+', '-os', output_size])
+                self.assertEqual(expected_question_count, args.question_count)
 
     def test_parse_cli_args_accepts_output_size_alias(self):
         args = parse_cli_args(['--type', '+', '-os', 'xsmall'])
         self.assertEqual('xsmall', args.output_size)
+        self.assertEqual(90, args.question_count)
+
+    def test_parse_cli_args_preserves_explicit_question_count(self):
+        args = parse_cli_args(['--type', '+', '-os', 'xsmall', '-q', '15'])
+        self.assertEqual('xsmall', args.output_size)
+        self.assertEqual(15, args.question_count)
 
     def test_build_incremented_filename_appends_number_before_extension(self):
         self.assertEqual(
