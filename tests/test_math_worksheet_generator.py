@@ -1,9 +1,11 @@
 import math
 import unittest
+from io import StringIO
 from unittest.mock import patch
 import random
 
 from run import MathWorksheetGenerator as Mg
+from run import parse_cli_args
 
 class TestStringMethods(unittest.TestCase):
 
@@ -97,6 +99,32 @@ class TestStringMethods(unittest.TestCase):
         g = Mg(type_='x', max_number=9, question_count=2)
         division_info = g.division_helper(876)
         self.assertIs(type(division_info[2]), int)
+
+    def test_parse_cli_args_help_option_outputs_usage(self):
+        with patch('sys.stdout', new=StringIO()) as fake_stdout:
+            with self.assertRaises(SystemExit) as context:
+                parse_cli_args(['-h'])
+
+        self.assertEqual(0, context.exception.code)
+        output = fake_stdout.getvalue()
+        self.assertIn('usage:', output)
+        self.assertIn('[-h]', output)
+        self.assertIn('--type', output)
+        self.assertIn('--digits', output)
+        self.assertIn('--question_count', output)
+        self.assertIn('--output', output)
+        self.assertIn('--title', output)
+
+    def test_parse_cli_args_without_arguments_outputs_help(self):
+        with patch('sys.stdout', new=StringIO()) as fake_stdout:
+            with self.assertRaises(SystemExit) as context:
+                parse_cli_args([])
+
+        self.assertEqual(0, context.exception.code)
+        output = fake_stdout.getvalue()
+        self.assertIn('usage:', output)
+        self.assertIn('Generate printable math practice worksheets as PDF files.', output)
+        self.assertIn('[-h]', output)
 
 
 if __name__ == '__main__':
