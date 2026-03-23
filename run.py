@@ -97,23 +97,37 @@ class MathWorksheetGenerator:
     def make_question_page(self, data: List[QuestionInfo]):
         """Prepare a single page of questions"""
         page_area = self.num_x_cell * self.num_y_cell
-        problems_per_page = self.split_arr(self.question_count, page_area)
+        first_page_area = page_area - self.num_x_cell
+        remaining_questions = self.question_count
+        problems_per_page = []
+
+        if remaining_questions:
+            problems_per_page.append(min(remaining_questions, first_page_area))
+            remaining_questions -= problems_per_page[0]
+
+        if remaining_questions:
+            problems_per_page.extend(self.split_arr(remaining_questions, page_area))
+
+        offset = 0
         total_pages = len(problems_per_page)
         for page in range(total_pages):
             self.pdf.add_page(orientation='L')
 
             if page == 0:
                 self.print_header_section()
-            elif problems_per_page[page] < self.num_x_cell:
-                self.print_question_row(data, page * page_area, problems_per_page[page])
+
+            if problems_per_page[page] < self.num_x_cell:
+                self.print_question_row(data, offset, problems_per_page[page])
             else:
                 problems_per_row = self.split_arr(problems_per_page[page], self.num_x_cell)
                 total_rows = len(problems_per_row)
-                self.print_question_row(data, page * page_area, problems_per_row[0])
+                self.print_question_row(data, offset, problems_per_row[0])
                 for row in range(1, total_rows):
                     page_row = row * self.num_x_cell
                     self.print_horizontal_separator()
-                    self.print_question_row(data, page * page_area + page_row, problems_per_row[row])
+                    self.print_question_row(data, offset + page_row, problems_per_row[row])
+
+            offset += problems_per_page[page]
 
     def split_arr(self, x: int, y: int):
         """Split x into x = y + y + ... + (x % y)"""

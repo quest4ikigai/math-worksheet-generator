@@ -52,8 +52,25 @@ class TestStringMethods(unittest.TestCase):
         g = Mg(type_='x', max_number=9, question_count=2)
         question_info = [[1, '+', 1, 2]] * g.question_count
         g.make_question_page(question_info)
-        total_page = math.ceil(g.question_count / (g.num_x_cell * g.num_y_cell))
+        total_page = 1
         self.assertEqual(total_page, g.pdf.page)
+
+    def test_make_question_page_first_page_header_reduces_capacity(self):
+        g = Mg(type_='x', max_number=9, question_count=5)
+        question_info = [[1, '+', 1, 2]] * g.question_count
+
+        with patch.object(g, 'print_header_section') as mock_header, \
+             patch.object(g, 'print_question_row') as mock_question_row, \
+             patch.object(g, 'print_horizontal_separator') as mock_separator:
+            g.make_question_page(question_info)
+
+        self.assertEqual(2, g.pdf.page)
+        self.assertEqual(1, mock_header.call_count)
+        self.assertEqual(
+            [(0, 4), (4, 1)],
+            [(call.args[1], call.args[2]) for call in mock_question_row.call_args_list]
+        )
+        self.assertEqual(0, mock_separator.call_count)
 
     def test_factors_two_digits(self):
         g = Mg(type_='x', max_number=9, question_count=2)
