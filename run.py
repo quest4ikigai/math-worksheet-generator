@@ -5,6 +5,7 @@ A module for creating .pdf math worksheets
 __author__ = 'januschung'
 
 import argparse
+import sys
 import random
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
@@ -326,46 +327,64 @@ def main(type_, size, question_count, filename, title):
     new_pdf.pdf.output(filename)
 
 
-if __name__ == "__main__":
+def build_parser():
+    """Build the CLI argument parser."""
     parser = argparse.ArgumentParser(
-        description='Generate Maths Addition/Subtraction/Multiplication Exercise Worksheet'
+        description='Generate printable math practice worksheets as PDF files.'
     )
     parser.add_argument(
         '--type',
         default='+',
         choices=['+', '-', 'x', '/', 'mix'],
-        help='type of calculation: '
-        '+: Addition; '
-        '-: Subtraction; '
-        'x: Multiplication; '
-        '/: Division; '
-        'mix: Mixed; '
-        '(default: +)',
+        help='operation type: + for addition, - for subtraction, '
+             'x for multiplication, / for division, mix for mixed practice '
+             '(default: +)',
     )
     parser.add_argument(
         '--digits',
         default='2',
         choices=['1', '2', '3'],
-        help='range of numbers: 1: 0-9, 2: 0-99, 3: 0-999' '(default: 2 -> 0-99)',
+        help='number of digits to use in generated operands: '
+             '1 for 0-9, 2 for 0-99, 3 for 0-999 (default: 2)',
     )
     parser.add_argument(
         '-q',
         '--question_count',
         type=int,
         default='80',  # Must be a multiple of 40
-        help='total number of questions' '(default: 80)',
+        help='total number of questions to generate (default: 80)',
     )
-    parser.add_argument('--output', metavar='filename.pdf', default='worksheet.pdf',
-                        help='Output file to the given filename '
-                             '(default: worksheet.pdf)')
+    parser.add_argument(
+        '--output',
+        metavar='filename.pdf',
+        default='worksheet.pdf',
+        help='write the generated worksheet PDF to this file '
+             '(default: worksheet.pdf)',
+    )
     parser.add_argument(
         '--title',
         nargs='?',
         default=None,
-        help='Add a front page with the specified Title, or "Math Practice Worksheet" if not specified)',
-        const='Math Practice Worksheet'
+        help='add a front page with this title; if provided without a value, '
+             'uses "Math Practice Worksheet"',
+        const='Math Practice Worksheet',
     )
-    args = parser.parse_args()
+    return parser
+
+
+def parse_cli_args(argv=None):
+    """Parse CLI arguments and print help when no arguments are provided."""
+    parser = build_parser()
+    if argv is None:
+        argv = sys.argv[1:]
+    if not argv:
+        parser.print_help()
+        raise SystemExit(0)
+    return parser.parse_args(argv)
+
+
+if __name__ == "__main__":
+    args = parse_cli_args()
 
     # how many places, 1:0-9, 2:0-99, 3:0-999
     if args.digits == "1":
