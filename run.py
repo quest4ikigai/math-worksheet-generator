@@ -228,7 +228,7 @@ class MathWorksheetGenerator:
         self.pdf.set_font(self.font_2, size=self.question_font_size)
         self.pdf.cell(self.pad_size, self.size)
         self.pdf.cell(self.size, self.size, txt=str(num_2), align='R')
-        x_cor = self.pdf.get_x() - 3
+        x_cor = self.pdf.get_x()
         y_cor = self.pdf.get_y()
         self.pdf.image(
             name='division.png',
@@ -237,7 +237,7 @@ class MathWorksheetGenerator:
             w=max(self.size * 0.25, 2),
             h=max(self.size * 0.85, 3),
         )
-        self.pdf.cell(self.size, self.size, txt=str(num_1), align='R')
+        self.pdf.cell(self.size, self.size, txt=str(num_1), align='L')
         self.pdf.cell(self.pad_size, self.size)
 
     def print_third_row(self, num: int, current_type: str):

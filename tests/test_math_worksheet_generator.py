@@ -131,6 +131,19 @@ class TestStringMethods(unittest.TestCase):
 
         mock_set_font.assert_called_once_with(g.font_1, size=g.identifier_font_size)
 
+    def test_print_second_row_division_aligns_dividend_left_of_symbol(self):
+        g = Mg(type_='/', max_number=9, question_count=1, output_size='medium')
+        with patch.object(g.pdf, 'set_font'), \
+             patch.object(g.pdf, 'get_x', return_value=50), \
+             patch.object(g.pdf, 'get_y', return_value=20), \
+             patch.object(g.pdf, 'image') as mock_image, \
+             patch.object(g.pdf, 'cell') as mock_cell:
+            g.print_second_row_division(84, 7)
+
+        self.assertEqual(50, mock_image.call_args.kwargs['x'])
+        self.assertEqual('division.png', mock_image.call_args.kwargs['name'])
+        self.assertEqual('L', mock_cell.call_args_list[2].kwargs['align'])
+
     def test_print_header_section_places_score_on_right(self):
         g = Mg(type_='x', max_number=9, question_count=1)
         with patch.object(g.pdf, 'cell') as mock_cell, \
