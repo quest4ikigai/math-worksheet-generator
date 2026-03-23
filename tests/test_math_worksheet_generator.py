@@ -118,6 +118,19 @@ class TestStringMethods(unittest.TestCase):
         self.assertEqual(26, g.question_font_size)
         self.assertGreater(g.question_font_size, OUTPUT_SIZE_CONFIG['large']['font_size'])
 
+    def test_xsmall_output_size_uses_smaller_identifier_font(self):
+        g = Mg(type_='x', max_number=9, question_count=1, output_size='xsmall')
+        self.assertEqual(9, g.identifier_font_size)
+        self.assertLess(g.identifier_font_size, g.question_font_size)
+
+    def test_print_top_row_uses_identifier_font_size_for_selected_preset(self):
+        g = Mg(type_='x', max_number=9, question_count=1, output_size='xsmall')
+        with patch.object(g.pdf, 'set_font') as mock_set_font, \
+             patch.object(g.pdf, 'cell'):
+            g.print_top_row('1')
+
+        mock_set_font.assert_called_once_with(g.font_1, size=g.identifier_font_size)
+
     def test_print_header_section_places_score_on_right(self):
         g = Mg(type_='x', max_number=9, question_count=1)
         with patch.object(g.pdf, 'cell') as mock_cell, \
