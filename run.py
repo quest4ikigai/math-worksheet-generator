@@ -5,6 +5,7 @@ A module for creating .pdf math worksheets
 __author__ = 'januschung'
 
 import argparse
+import math
 import os
 import sys
 import random
@@ -14,6 +15,14 @@ from functools import reduce
 from typing import List, Tuple
 
 QuestionInfo = Tuple[int, str, int, int]
+
+OUTPUT_SIZE_CONFIG = {
+    'xsmall': {'font_size': 11, 'cell_height': 6, 'header_gap': 2, 'questions_per_page': 30, 'columns': 6},
+    'small': {'font_size': 13, 'cell_height': 8, 'header_gap': 3, 'questions_per_page': 24, 'columns': 6},
+    'medium': {'font_size': 15, 'cell_height': 10, 'header_gap': 4, 'questions_per_page': 20, 'columns': 5},
+    'large': {'font_size': 20, 'cell_height': 15, 'header_gap': 5, 'questions_per_page': 12, 'columns': 4},
+    'xlarge': {'font_size': 23, 'cell_height': 18, 'header_gap': 6, 'questions_per_page': 8, 'columns': 4},
+}
 
 
 def resolve_output_path(filename: str) -> str:
@@ -78,22 +87,33 @@ def prompt_for_output_path(
 
 class MathWorksheetGenerator:
     """class for generating math worksheet of specified size and main_type"""
-    def __init__(self, type_: str, max_number: int, question_count: int):
+    def __init__(
+        self,
+        type_: str,
+        max_number: int,
+        question_count: int,
+        output_size: str='medium',
+    ):
         self.main_type = type_
         self.max_number = max_number
         self.question_count = question_count
         self.pdf = FPDF()
+        self.output_size = output_size
+        self.output_config = OUTPUT_SIZE_CONFIG[output_size]
 
         self.small_font_size = 10
         self.middle_font_size = 15
         self.large_font_size = 30
-        self.size = 21
+        self.size = self.output_config['cell_height']
         self.tiny_pad_size = 2
         self.middle_pad_size = 6
         self.pad_size = 10
         self.large_pad_size = 30
-        self.num_x_cell = 4
-        self.num_y_cell = 2
+        self.num_x_cell = self.output_config['columns']
+        self.questions_per_page = self.output_config['questions_per_page']
+        self.num_y_cell = math.ceil(self.questions_per_page / self.num_x_cell)
+        self.question_font_size = self.output_config['font_size']
+        self.header_gap = self.output_config['header_gap']
         self.font_1 = 'Times'
         self.font_2 = 'Helvetica'
 
@@ -158,36 +178,21 @@ class MathWorksheetGenerator:
 
     def make_question_page(self, data: List[QuestionInfo]):
         """Prepare a single page of questions"""
-        page_area = self.num_x_cell * self.num_y_cell
-        first_page_area = page_area - self.num_x_cell
-        remaining_questions = self.question_count
-        problems_per_page = []
-
-        if remaining_questions:
-            problems_per_page.append(min(remaining_questions, first_page_area))
-            remaining_questions -= problems_per_page[0]
-
-        if remaining_questions:
-            problems_per_page.extend(self.split_arr(remaining_questions, page_area))
+        problems_per_page = self.split_arr(self.question_count, self.questions_per_page)
 
         offset = 0
         total_pages = len(problems_per_page)
         for page in range(total_pages):
             self.pdf.add_page(orientation='L')
+            self.print_header_section()
 
-            if page == 0:
-                self.print_header_section()
-
-            if problems_per_page[page] < self.num_x_cell:
-                self.print_question_row(data, offset, problems_per_page[page])
-            else:
-                problems_per_row = self.split_arr(problems_per_page[page], self.num_x_cell)
-                total_rows = len(problems_per_row)
-                self.print_question_row(data, offset, problems_per_row[0])
-                for row in range(1, total_rows):
-                    page_row = row * self.num_x_cell
-                    self.print_horizontal_separator()
-                    self.print_question_row(data, offset + page_row, problems_per_row[row])
+            problems_per_row = self.split_arr(problems_per_page[page], self.num_x_cell)
+            total_rows = len(problems_per_row)
+            self.print_question_row(data, offset, problems_per_row[0])
+            for row in range(1, total_rows):
+                page_row = sum(problems_per_row[:row])
+                self.print_horizontal_separator()
+                self.print_question_row(data, offset + page_row, problems_per_row[row])
 
             offset += problems_per_page[page]
 
@@ -202,65 +207,63 @@ class MathWorksheetGenerator:
     def print_top_row(self, question_num: str, font_size: int=15):
         """Helper function to print first character row of a question row"""
         self.pdf.set_font(self.font_1, size=font_size)
-        self.pdf.cell(self.pad_size, self.pad_size, txt=question_num, border='LT', align='C')
-        self.pdf.cell(self.size, self.pad_size, border='T')
-        self.pdf.cell(self.size, self.pad_size, border='T')
-        self.pdf.cell(self.pad_size, self.pad_size, border='TR')
+        self.pdf.cell(self.pad_size, self.pad_size, txt=question_num, align='C')
+        self.pdf.cell(self.size, self.pad_size)
+        self.pdf.cell(self.size, self.pad_size)
+        self.pdf.cell(self.pad_size, self.pad_size)
 
     def print_second_row(self, num: int):
         """Helper function to print second character row of a question row"""
-        self.pdf.set_font(self.font_2, size=self.large_font_size)
-        self.pdf.cell(self.pad_size, self.size, border='L')
+        self.pdf.set_font(self.font_2, size=self.question_font_size)
+        self.pdf.cell(self.pad_size, self.size)
         self.pdf.cell(self.size, self.size)
         self.pdf.cell(self.size, self.size, txt=str(num), align='R')
-        self.pdf.cell(self.pad_size, self.size, border='R')
+        self.pdf.cell(self.pad_size, self.size)
 
     def print_second_row_division(self, num_1: int, num_2: int):
         """Helper function to print second character row of a question row for division"""
-        self.pdf.set_font(self.font_2, size=self.large_font_size)
-        self.pdf.cell(self.pad_size, self.size, border='L')
+        self.pdf.set_font(self.font_2, size=self.question_font_size)
+        self.pdf.cell(self.pad_size, self.size)
         self.pdf.cell(self.size, self.size, txt=str(num_2), align='R')
         x_cor = self.pdf.get_x() - 3
         y_cor = self.pdf.get_y()
-        self.pdf.image(name='division.png', x=x_cor, y=y_cor)
+        self.pdf.image(
+            name='division.png',
+            x=x_cor,
+            y=y_cor,
+            w=max(self.size * 0.25, 2),
+            h=max(self.size * 0.85, 3),
+        )
         self.pdf.cell(self.size, self.size, txt=str(num_1), align='R')
-        self.pdf.cell(self.pad_size, self.size, border='R')
+        self.pdf.cell(self.pad_size, self.size)
 
     def print_third_row(self, num: int, current_type: str):
         """Helper function to print third character row of a question row"""
-        self.pdf.cell(self.pad_size, self.size, border='L')
+        self.pdf.cell(self.pad_size, self.size)
         self.pdf.cell(self.size, self.size, txt=current_type, align='L')
         self.pdf.cell(self.size, self.size, txt=str(num), align='R')
-        self.pdf.cell(self.pad_size, self.size, border='R')
+        self.pdf.cell(self.pad_size, self.size)
 
     def print_third_row_division(self):
         """Helper function to print third character row of a question row for division"""
-        self.pdf.cell(self.pad_size, self.size, border='L')
+        self.pdf.cell(self.pad_size, self.size)
         self.pdf.cell(self.size, self.size, align='L')
         self.pdf.cell(self.size, self.size, align='R')
-        self.pdf.cell(self.pad_size, self.size, border='R')
+        self.pdf.cell(self.pad_size, self.size)
 
     def print_bottom_row(self):
         """Helper function to print bottom row of question"""
-        self.pdf.cell(self.pad_size, self.size, border='LB')
-        self.pdf.cell(self.size, self.size, border='TB')
-        self.pdf.cell(self.size, self.size, border='TB')
-        self.pdf.cell(self.pad_size, self.size, border='BR')
+        self.pdf.cell(self.pad_size, self.size)
+        self.pdf.cell(self.size, self.tiny_pad_size, border='B')
+        self.pdf.cell(self.size, self.tiny_pad_size, border='B')
+        self.pdf.cell(self.pad_size, self.size)
 
     def print_bottom_row_division(self):
         """Helper function to print bottom row of question"""
-        self.pdf.cell(self.pad_size, self.size, border='LB')
-        self.pdf.cell(self.size, self.size, border='B')
-        self.pdf.cell(self.size, self.size, border='B')
-        self.pdf.cell(self.pad_size, self.size, border='BR')
-
-    def print_header_section_bottom_row(self):
-        """Helper function to print bottom row of header section"""
-        self.pdf.set_font(self.font_2, size=self.tiny_pad_size)
-        self.pdf.cell(self.pad_size, self.pad_size, border='LB', align='C')
-        self.pdf.cell(self.size, self.pad_size, border='B', align='C')
-        self.pdf.cell(self.size, self.pad_size, border='B', align='C')
-        self.pdf.cell(self.pad_size, self.pad_size, border='BR', align='C')
+        self.pdf.cell(self.pad_size, self.size)
+        self.pdf.cell(self.size, self.tiny_pad_size, border='B')
+        self.pdf.cell(self.size, self.tiny_pad_size, border='B')
+        self.pdf.cell(self.pad_size, self.size)
 
     def print_edge_vertical_separator(self):
         """Print space between question for the top or bottom row"""
@@ -272,30 +275,26 @@ class MathWorksheetGenerator:
 
     def print_horizontal_separator(self):
         """Print line breaker between two rows of questions"""
-        self.pdf.cell(self.size, self.size)
-        self.pdf.ln()
+        self.pdf.ln(self.tiny_pad_size)
 
     def print_header_section(self):
-        self.print_top_row(question_num='Date', font_size=self.small_font_size)
-        self.print_edge_vertical_separator()
-
-        self.print_top_row(question_num='Name', font_size=self.small_font_size)
-        self.print_edge_vertical_separator()
-            
-        self.print_top_row(question_num='Score', font_size=self.small_font_size)
-        self.print_edge_vertical_separator()
-
-        self.print_top_row(question_num='')
-        self.print_edge_vertical_separator()
-        self.pdf.ln()
-    
-        for _ in range(self.num_x_cell):
-            self.print_header_section_bottom_row()
-            self.print_edge_vertical_separator()
-
-        self.pdf.ln()
-        
-        self.print_horizontal_separator()
+        self.pdf.set_font(self.font_2, size=self.small_font_size)
+        self.pdf.cell(
+            0,
+            self.pad_size,
+            txt='Name: ____________________    Date: ____________',
+            new_x=XPos.LEFT,
+            new_y=YPos.TOP,
+        )
+        self.pdf.cell(
+            0,
+            self.pad_size,
+            txt='Score: ________',
+            align='R',
+            new_x=XPos.LMARGIN,
+            new_y=YPos.NEXT,
+        )
+        self.pdf.ln(self.header_gap)
     
 
     def print_question_row(self, data, offset, num_problems):
@@ -377,11 +376,11 @@ class MathWorksheetGenerator:
         self.pdf.cell(cell_width_line, cell_height, txt=f'__________________________/{self.question_count}', new_x=XPos.LMARGIN, new_y=YPos.NEXT)
         self.pdf.ln(30)
 
-def main(type_, size, question_count, filename, title):
+def main(type_, size, question_count, filename, title, output_size='medium'):
     """main function"""
     filename = prompt_for_output_path(filename)
     os.makedirs(os.path.dirname(filename), exist_ok=True)
-    new_pdf = MathWorksheetGenerator(type_, size, question_count)
+    new_pdf = MathWorksheetGenerator(type_, size, question_count, output_size=output_size)
     seed_question = new_pdf.get_list_of_questions(question_count)
     if title:
         new_pdf.make_front_page(title)
@@ -432,6 +431,14 @@ def build_parser():
              'uses "Math Practice Worksheet"',
         const='Math Practice Worksheet',
     )
+    parser.add_argument(
+        '-os',
+        '--output-size',
+        default='medium',
+        choices=['xsmall', 'small', 'medium', 'large', 'xlarge'],
+        help='worksheet layout size preset controlling page density '
+             '(default: medium)',
+    )
     return parser
 
 
@@ -457,4 +464,11 @@ if __name__ == "__main__":
     else:
         size_ = 99
 
-    main(args.type, size_, args.question_count, args.output, args.title)
+    main(
+        args.type,
+        size_,
+        args.question_count,
+        args.output,
+        args.title,
+        args.output_size,
+    )

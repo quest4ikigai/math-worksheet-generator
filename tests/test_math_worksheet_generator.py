@@ -1,11 +1,12 @@
-import math
 import os
 import unittest
 from io import StringIO
 from unittest.mock import patch
 import random
+from fpdf.enums import XPos, YPos
 
 from run import MathWorksheetGenerator as Mg
+from run import OUTPUT_SIZE_CONFIG
 from run import build_incremented_filename
 from run import main
 from run import next_available_output_path
@@ -63,8 +64,8 @@ class TestStringMethods(unittest.TestCase):
         total_page = 1
         self.assertEqual(total_page, g.pdf.page)
 
-    def test_make_question_page_first_page_header_reduces_capacity(self):
-        g = Mg(type_='x', max_number=9, question_count=5)
+    def test_make_question_page_uses_medium_capacity_without_reducing_first_page(self):
+        g = Mg(type_='x', max_number=9, question_count=21)
         question_info = [[1, '+', 1, 2]] * g.question_count
 
         with patch.object(g, 'print_header_section') as mock_header, \
@@ -73,12 +74,69 @@ class TestStringMethods(unittest.TestCase):
             g.make_question_page(question_info)
 
         self.assertEqual(2, g.pdf.page)
-        self.assertEqual(1, mock_header.call_count)
+        self.assertEqual(2, mock_header.call_count)
         self.assertEqual(
-            [(0, 4), (4, 1)],
+            [(0, 5), (5, 5), (10, 5), (15, 5), (20, 1)],
             [(call.args[1], call.args[2]) for call in mock_question_row.call_args_list]
         )
-        self.assertEqual(0, mock_separator.call_count)
+        self.assertEqual(3, mock_separator.call_count)
+
+    def test_make_question_page_small_keeps_second_page_offsets_aligned(self):
+        g = Mg(type_='x', max_number=9, question_count=24, output_size='small')
+        question_info = [[1, '+', 1, 2]] * g.question_count
+
+        with patch.object(g, 'print_header_section'), \
+             patch.object(g, 'print_question_row') as mock_question_row, \
+             patch.object(g, 'print_horizontal_separator'):
+            g.make_question_page(question_info)
+
+        self.assertEqual(
+            [(0, 6), (6, 6), (12, 6), (18, 6)],
+            [(call.args[1], call.args[2]) for call in mock_question_row.call_args_list]
+        )
+
+    def test_output_size_configures_questions_per_page(self):
+        for output_size, expected_questions, expected_columns in (
+            ('xsmall', 30, 6),
+            ('small', 24, 6),
+            ('medium', 20, 5),
+            ('large', 12, 4),
+            ('xlarge', 8, 4),
+        ):
+            with self.subTest(output_size=output_size):
+                g = Mg(type_='x', max_number=9, question_count=1, output_size=output_size)
+                self.assertEqual(expected_questions, g.questions_per_page)
+                self.assertEqual(expected_questions, OUTPUT_SIZE_CONFIG[output_size]['questions_per_page'])
+                self.assertEqual(expected_columns, g.num_x_cell)
+
+    def test_print_header_section_places_score_on_right(self):
+        g = Mg(type_='x', max_number=9, question_count=1)
+        with patch.object(g.pdf, 'cell') as mock_cell, \
+             patch.object(g.pdf, 'ln') as mock_ln:
+            g.print_header_section()
+
+        self.assertEqual('Name: ____________________    Date: ____________', mock_cell.call_args_list[0].kwargs['txt'])
+        self.assertEqual(XPos.LEFT, mock_cell.call_args_list[0].kwargs['new_x'])
+        self.assertEqual(YPos.TOP, mock_cell.call_args_list[0].kwargs['new_y'])
+        self.assertEqual('Score: ________', mock_cell.call_args_list[1].kwargs['txt'])
+        self.assertEqual('R', mock_cell.call_args_list[1].kwargs['align'])
+        self.assertEqual(XPos.LMARGIN, mock_cell.call_args_list[1].kwargs['new_x'])
+        self.assertEqual(YPos.NEXT, mock_cell.call_args_list[1].kwargs['new_y'])
+        mock_ln.assert_called_once_with(g.header_gap)
+
+    def test_print_question_row_keeps_only_bottom_answer_line_borders(self):
+        g = Mg(type_='x', max_number=9, question_count=1)
+        with patch.object(g.pdf, 'cell') as mock_cell, \
+             patch.object(g.pdf, 'set_font'), \
+             patch.object(g.pdf, 'ln'):
+            g.print_question_row([[12, '+', 7, 19]], 0, 1)
+
+        bordered_calls = []
+        for call in mock_cell.call_args_list:
+            if 'border' in call.kwargs:
+                bordered_calls.append(call.kwargs['border'])
+
+        self.assertEqual(['B', 'B'], bordered_calls)
 
     def test_factors_two_digits(self):
         g = Mg(type_='x', max_number=9, question_count=2)
@@ -120,6 +178,7 @@ class TestStringMethods(unittest.TestCase):
         self.assertIn('--question_count', output)
         self.assertIn('--output', output)
         self.assertIn('--title', output)
+        self.assertIn('--output-size', output)
 
     def test_parse_cli_args_without_arguments_outputs_help(self):
         with patch('sys.stdout', new=StringIO()) as fake_stdout:
@@ -140,6 +199,14 @@ class TestStringMethods(unittest.TestCase):
             os.path.join('custom', 'worksheet.pdf'),
             resolve_output_path(os.path.join('custom', 'worksheet.pdf'))
         )
+
+    def test_parse_cli_args_defaults_output_size_to_medium(self):
+        args = parse_cli_args(['--type', '+'])
+        self.assertEqual('medium', args.output_size)
+
+    def test_parse_cli_args_accepts_output_size_alias(self):
+        args = parse_cli_args(['--type', '+', '-os', 'xsmall'])
+        self.assertEqual('xsmall', args.output_size)
 
     def test_build_incremented_filename_appends_number_before_extension(self):
         self.assertEqual(
@@ -230,6 +297,20 @@ class TestStringMethods(unittest.TestCase):
 
         mock_makedirs.assert_called_once_with('output', exist_ok=True)
         mock_output.assert_called_once_with(os.path.join('output', 'worksheet.pdf'))
+
+    def test_main_passes_output_size_to_generator(self):
+        with patch.object(Mg, 'get_list_of_questions', return_value=[]), \
+             patch.object(Mg, 'make_question_page'), \
+             patch.object(Mg, 'make_answer_page'), \
+             patch('run.os.makedirs'), \
+             patch('run.prompt_for_output_path', return_value=os.path.join('output', 'worksheet.pdf')), \
+             patch('run.FPDF.output'), \
+             patch('run.MathWorksheetGenerator') as mock_generator:
+            instance = mock_generator.return_value
+            instance.get_list_of_questions.return_value = []
+            main('+', 9, 0, 'worksheet.pdf', None, output_size='xlarge')
+
+        mock_generator.assert_called_once_with('+', 9, 0, output_size='xlarge')
 
 
 if __name__ == '__main__':
