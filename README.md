@@ -35,7 +35,7 @@ pip install -r requirements.txt
 ## How to Use
 1. Generate the worksheet in pdf format with the following command:
 ```
-python3 run.py --type [+|-|x|/|mix] --digits [1|2|3] [-q|--question_count] [int] --output [custom-name.pdf] --title [title-at-front-page]
+python3 run.py --type [+|-|x|/|mix] --digits [1|2|3] [-q|--question_count] [int] [-os|--output-size] [xsmall,small,medium,large,xlarge] --output [custom-name.pdf] --title [title-at-front-page]
 ```
 2. Print out the generated file `output/worksheet.pdf`
 
