@@ -5,6 +5,7 @@ A module for creating .pdf math worksheets
 __author__ = 'januschung'
 
 import argparse
+import os
 import sys
 import random
 from fpdf import FPDF
@@ -13,6 +14,66 @@ from functools import reduce
 from typing import List, Tuple
 
 QuestionInfo = Tuple[int, str, int, int]
+
+
+def resolve_output_path(filename: str) -> str:
+    """Write root-level filenames to the output directory."""
+    if os.path.dirname(filename):
+        return filename
+    return os.path.join('output', filename)
+
+
+def build_incremented_filename(filename: str, index: int) -> str:
+    """Append an increment number before the file extension."""
+    name, extension = os.path.splitext(filename)
+    return f'{name}-{index}{extension}'
+
+
+def next_available_output_path(filename: str, exists_func=os.path.exists) -> str:
+    """Find the next available incremented filename."""
+    index = 1
+    candidate = build_incremented_filename(filename, index)
+    while exists_func(candidate):
+        index += 1
+        candidate = build_incremented_filename(filename, index)
+    return candidate
+
+
+def prompt_for_output_path(
+    filename: str,
+    exists_func=os.path.exists,
+    input_func=input,
+    print_func=print,
+) -> str:
+    """Resolve filename collisions before writing the worksheet."""
+    output_path = resolve_output_path(filename)
+
+    while exists_func(output_path):
+        print_func(f'Worksheet already exists: {output_path}')
+        choice = input_func(
+            'Choose [o]verwrite, [a]bort, [c]hange name, or [i]ncrement: '
+        ).strip().lower()
+
+        if choice in ('o', 'overwrite'):
+            return output_path
+
+        if choice in ('a', 'abort'):
+            raise SystemExit('Aborted without overwriting the existing worksheet.')
+
+        if choice in ('c', 'change', 'rename'):
+            new_name = input_func('Enter a new worksheet filename: ').strip()
+            if not new_name:
+                print_func('A worksheet filename is required.')
+                continue
+            output_path = resolve_output_path(new_name)
+            continue
+
+        if choice in ('i', 'increment'):
+            return next_available_output_path(output_path, exists_func=exists_func)
+
+        print_func('Invalid choice. Please enter o, a, c, or i.')
+
+    return output_path
 
 
 class MathWorksheetGenerator:
@@ -318,6 +379,8 @@ class MathWorksheetGenerator:
 
 def main(type_, size, question_count, filename, title):
     """main function"""
+    filename = prompt_for_output_path(filename)
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     new_pdf = MathWorksheetGenerator(type_, size, question_count)
     seed_question = new_pdf.get_list_of_questions(question_count)
     if title:
@@ -359,7 +422,7 @@ def build_parser():
         metavar='filename.pdf',
         default='worksheet.pdf',
         help='write the generated worksheet PDF to this file '
-             '(default: worksheet.pdf)',
+             '(default: output/worksheet.pdf)',
     )
     parser.add_argument(
         '--title',
