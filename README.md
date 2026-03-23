@@ -35,7 +35,7 @@ pip install -r requirements.txt
 ## How to Use
 1. Generate the worksheet in pdf format with the following command:
 ```
-python3 run.py --type [+|-|x|/|mix] --digits [1|2|3] [-q|--question_count] [int] --output [custom-name.pdf] --title [title-at-front-page]
+python3 run.py --type [+|-|x|/|mix] --digits [1|2|3] [-q|--question_count] [int] [-os|--output-size] [xsmall,small,medium,large,xlarge] --output [custom-name.pdf] --title [title-at-front-page]
 ```
 2. Print out the generated file `output/worksheet.pdf`
 
@@ -54,6 +54,23 @@ python3 run.py -q 100
 or
 ```
 python3 run.py --question_count 100
+```
+For selecting a worksheet density preset with `--output-size` (default is `medium`):
+```
+python3 run.py --output-size xsmall
+```
+Available presets:
+- `xsmall`: smallest question font, highest page density
+- `small`: smaller questions with a compact layout
+- `medium`: balanced default layout
+- `large`: larger questions with fewer per page
+- `xlarge`: largest questions with the fewest per page
+
+Examples:
+```
+python3 run.py --type + --output-size small
+python3 run.py --type mix --digits 3 --output-size large
+python3 run.py --type x -q 40 --output-size xlarge
 ```
 Generated PDFs are written to the `output/` directory by default. The directory is created automatically if it does not already exist.
 

@@ -12,16 +12,16 @@ import random
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
 from functools import reduce
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 QuestionInfo = Tuple[int, str, int, int]
 
 OUTPUT_SIZE_CONFIG = {
-    'xsmall': {'font_size': 11, 'cell_height': 6, 'header_gap': 2, 'questions_per_page': 30, 'columns': 6, 'default_question_count': 90},
-    'small': {'font_size': 13, 'cell_height': 8, 'header_gap': 3, 'questions_per_page': 24, 'columns': 6, 'default_question_count': 72},
-    'medium': {'font_size': 15, 'cell_height': 10, 'header_gap': 4, 'questions_per_page': 20, 'columns': 5, 'default_question_count': 80},
-    'large': {'font_size': 20, 'cell_height': 15, 'header_gap': 5, 'questions_per_page': 12, 'columns': 4, 'default_question_count': 84},
-    'xlarge': {'font_size': 23, 'cell_height': 18, 'header_gap': 6, 'questions_per_page': 8, 'columns': 4, 'default_question_count': 80},
+    'xsmall': {'font_size': 11, 'identifier_font_size': 9, 'cell_height': 6, 'header_gap': 2, 'questions_per_page': 30, 'columns': 6, 'default_question_count': 90},
+    'small': {'font_size': 13, 'identifier_font_size': 15, 'cell_height': 8, 'header_gap': 3, 'questions_per_page': 24, 'columns': 6, 'default_question_count': 72},
+    'medium': {'font_size': 15, 'identifier_font_size': 15, 'cell_height': 10, 'header_gap': 4, 'questions_per_page': 20, 'columns': 5, 'default_question_count': 80},
+    'large': {'font_size': 20, 'identifier_font_size': 15, 'cell_height': 15, 'header_gap': 5, 'questions_per_page': 12, 'columns': 4, 'default_question_count': 84},
+    'xlarge': {'font_size': 26, 'identifier_font_size': 15, 'cell_height': 18, 'header_gap': 6, 'questions_per_page': 8, 'columns': 4, 'default_question_count': 80},
 }
 
 
@@ -113,6 +113,7 @@ class MathWorksheetGenerator:
         self.questions_per_page = self.output_config['questions_per_page']
         self.num_y_cell = math.ceil(self.questions_per_page / self.num_x_cell)
         self.question_font_size = self.output_config['font_size']
+        self.identifier_font_size = self.output_config['identifier_font_size']
         self.header_gap = self.output_config['header_gap']
         self.font_1 = 'Times'
         self.font_2 = 'Helvetica'
@@ -176,7 +177,7 @@ class MathWorksheetGenerator:
                 duplicates += 1
         return questions
 
-    def make_question_page(self, data: List[QuestionInfo]):
+    def make_question_page(self, data: List[QuestionInfo], include_header: bool = True):
         """Prepare a single page of questions"""
         problems_per_page = self.split_arr(self.question_count, self.questions_per_page)
 
@@ -184,7 +185,8 @@ class MathWorksheetGenerator:
         total_pages = len(problems_per_page)
         for page in range(total_pages):
             self.pdf.add_page(orientation='L')
-            self.print_header_section()
+            if include_header:
+                self.print_header_section()
 
             problems_per_row = self.split_arr(problems_per_page[page], self.num_x_cell)
             total_rows = len(problems_per_row)
@@ -204,8 +206,10 @@ class MathWorksheetGenerator:
 
         return [y] * quotient
 
-    def print_top_row(self, question_num: str, font_size: int=15):
+    def print_top_row(self, question_num: str, font_size: Optional[int] = None):
         """Helper function to print first character row of a question row"""
+        if font_size is None:
+            font_size = self.identifier_font_size
         self.pdf.set_font(self.font_1, size=font_size)
         self.pdf.cell(self.pad_size, self.pad_size, txt=question_num, align='C')
         self.pdf.cell(self.size, self.pad_size)
@@ -225,7 +229,7 @@ class MathWorksheetGenerator:
         self.pdf.set_font(self.font_2, size=self.question_font_size)
         self.pdf.cell(self.pad_size, self.size)
         self.pdf.cell(self.size, self.size, txt=str(num_2), align='R')
-        x_cor = self.pdf.get_x() - 3
+        x_cor = self.pdf.get_x()
         y_cor = self.pdf.get_y()
         self.pdf.image(
             name='division.png',
@@ -234,7 +238,7 @@ class MathWorksheetGenerator:
             w=max(self.size * 0.25, 2),
             h=max(self.size * 0.85, 3),
         )
-        self.pdf.cell(self.size, self.size, txt=str(num_1), align='R')
+        self.pdf.cell(self.size, self.size, txt=str(num_1), align='L')
         self.pdf.cell(self.pad_size, self.size)
 
     def print_third_row(self, num: int, current_type: str):
@@ -384,7 +388,7 @@ def main(type_, size, question_count, filename, title, output_size='medium'):
     seed_question = new_pdf.get_list_of_questions(question_count)
     if title:
         new_pdf.make_front_page(title)
-    new_pdf.make_question_page(seed_question)
+    new_pdf.make_question_page(seed_question, include_header=not title)
     new_pdf.make_answer_page(seed_question)
     new_pdf.pdf.output(filename)
 

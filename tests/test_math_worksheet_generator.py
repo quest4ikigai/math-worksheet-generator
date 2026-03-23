@@ -95,6 +95,17 @@ class TestStringMethods(unittest.TestCase):
             [(call.args[1], call.args[2]) for call in mock_question_row.call_args_list]
         )
 
+    def test_make_question_page_skips_header_when_requested(self):
+        g = Mg(type_='x', max_number=9, question_count=20)
+        question_info = [[1, '+', 1, 2]] * g.question_count
+
+        with patch.object(g, 'print_header_section') as mock_header, \
+             patch.object(g, 'print_question_row'), \
+             patch.object(g, 'print_horizontal_separator'):
+            g.make_question_page(question_info, include_header=False)
+
+        mock_header.assert_not_called()
+
     def test_output_size_configures_questions_per_page(self):
         for output_size, expected_questions, expected_columns, expected_default_count in (
             ('xsmall', 30, 6, 90),
@@ -112,6 +123,37 @@ class TestStringMethods(unittest.TestCase):
                     OUTPUT_SIZE_CONFIG[output_size]['default_question_count']
                 )
                 self.assertEqual(expected_columns, g.num_x_cell)
+
+    def test_xlarge_output_size_uses_larger_question_font(self):
+        g = Mg(type_='x', max_number=9, question_count=1, output_size='xlarge')
+        self.assertEqual(26, g.question_font_size)
+        self.assertGreater(g.question_font_size, OUTPUT_SIZE_CONFIG['large']['font_size'])
+
+    def test_xsmall_output_size_uses_smaller_identifier_font(self):
+        g = Mg(type_='x', max_number=9, question_count=1, output_size='xsmall')
+        self.assertEqual(9, g.identifier_font_size)
+        self.assertLess(g.identifier_font_size, g.question_font_size)
+
+    def test_print_top_row_uses_identifier_font_size_for_selected_preset(self):
+        g = Mg(type_='x', max_number=9, question_count=1, output_size='xsmall')
+        with patch.object(g.pdf, 'set_font') as mock_set_font, \
+             patch.object(g.pdf, 'cell'):
+            g.print_top_row('1')
+
+        mock_set_font.assert_called_once_with(g.font_1, size=g.identifier_font_size)
+
+    def test_print_second_row_division_aligns_dividend_left_of_symbol(self):
+        g = Mg(type_='/', max_number=9, question_count=1, output_size='medium')
+        with patch.object(g.pdf, 'set_font'), \
+             patch.object(g.pdf, 'get_x', return_value=50), \
+             patch.object(g.pdf, 'get_y', return_value=20), \
+             patch.object(g.pdf, 'image') as mock_image, \
+             patch.object(g.pdf, 'cell') as mock_cell:
+            g.print_second_row_division(84, 7)
+
+        self.assertEqual(50, mock_image.call_args.kwargs['x'])
+        self.assertEqual('division.png', mock_image.call_args.kwargs['name'])
+        self.assertEqual('L', mock_cell.call_args_list[2].kwargs['align'])
 
     def test_print_header_section_places_score_on_right(self):
         g = Mg(type_='x', max_number=9, question_count=1)
@@ -334,6 +376,18 @@ class TestStringMethods(unittest.TestCase):
             main('+', 9, 0, 'worksheet.pdf', None, output_size='xlarge')
 
         mock_generator.assert_called_once_with('+', 9, 0, output_size='xlarge')
+
+    def test_main_skips_question_page_header_when_title_is_present(self):
+        with patch('run.os.makedirs'), \
+             patch('run.prompt_for_output_path', return_value=os.path.join('output', 'worksheet.pdf')), \
+             patch('run.FPDF.output'), \
+             patch('run.MathWorksheetGenerator') as mock_generator:
+            instance = mock_generator.return_value
+            instance.get_list_of_questions.return_value = []
+            main('+', 9, 0, 'worksheet.pdf', 'Math Practice Worksheet')
+
+        instance.make_front_page.assert_called_once_with('Math Practice Worksheet')
+        instance.make_question_page.assert_called_once_with([], include_header=False)
 
 
 if __name__ == '__main__':
