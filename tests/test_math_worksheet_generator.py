@@ -95,6 +95,17 @@ class TestStringMethods(unittest.TestCase):
             [(call.args[1], call.args[2]) for call in mock_question_row.call_args_list]
         )
 
+    def test_make_question_page_skips_header_when_requested(self):
+        g = Mg(type_='x', max_number=9, question_count=20)
+        question_info = [[1, '+', 1, 2]] * g.question_count
+
+        with patch.object(g, 'print_header_section') as mock_header, \
+             patch.object(g, 'print_question_row'), \
+             patch.object(g, 'print_horizontal_separator'):
+            g.make_question_page(question_info, include_header=False)
+
+        mock_header.assert_not_called()
+
     def test_output_size_configures_questions_per_page(self):
         for output_size, expected_questions, expected_columns, expected_default_count in (
             ('xsmall', 30, 6, 90),
@@ -365,6 +376,18 @@ class TestStringMethods(unittest.TestCase):
             main('+', 9, 0, 'worksheet.pdf', None, output_size='xlarge')
 
         mock_generator.assert_called_once_with('+', 9, 0, output_size='xlarge')
+
+    def test_main_skips_question_page_header_when_title_is_present(self):
+        with patch('run.os.makedirs'), \
+             patch('run.prompt_for_output_path', return_value=os.path.join('output', 'worksheet.pdf')), \
+             patch('run.FPDF.output'), \
+             patch('run.MathWorksheetGenerator') as mock_generator:
+            instance = mock_generator.return_value
+            instance.get_list_of_questions.return_value = []
+            main('+', 9, 0, 'worksheet.pdf', 'Math Practice Worksheet')
+
+        instance.make_front_page.assert_called_once_with('Math Practice Worksheet')
+        instance.make_question_page.assert_called_once_with([], include_header=False)
 
 
 if __name__ == '__main__':

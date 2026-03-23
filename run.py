@@ -177,7 +177,7 @@ class MathWorksheetGenerator:
                 duplicates += 1
         return questions
 
-    def make_question_page(self, data: List[QuestionInfo]):
+    def make_question_page(self, data: List[QuestionInfo], include_header: bool = True):
         """Prepare a single page of questions"""
         problems_per_page = self.split_arr(self.question_count, self.questions_per_page)
 
@@ -185,7 +185,8 @@ class MathWorksheetGenerator:
         total_pages = len(problems_per_page)
         for page in range(total_pages):
             self.pdf.add_page(orientation='L')
-            self.print_header_section()
+            if include_header:
+                self.print_header_section()
 
             problems_per_row = self.split_arr(problems_per_page[page], self.num_x_cell)
             total_rows = len(problems_per_row)
@@ -387,7 +388,7 @@ def main(type_, size, question_count, filename, title, output_size='medium'):
     seed_question = new_pdf.get_list_of_questions(question_count)
     if title:
         new_pdf.make_front_page(title)
-    new_pdf.make_question_page(seed_question)
+    new_pdf.make_question_page(seed_question, include_header=not title)
     new_pdf.make_answer_page(seed_question)
     new_pdf.pdf.output(filename)
 
