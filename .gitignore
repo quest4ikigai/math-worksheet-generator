@@ -4,4 +4,4 @@
 venv/
 __pycache__/
 
-worksheet.pdf
+output/

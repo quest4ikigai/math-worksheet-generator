@@ -37,7 +37,7 @@ pip install -r requirements.txt
 ```
 python3 run.py --type [+|-|x|/|mix] --digits [1|2|3] [-q|--question_count] [int] --output [custom-name.pdf] --title [title-at-front-page]
 ```
-2. Print out the generated file `worksheet.pdf`
+2. Print out the generated file `output/worksheet.pdf`
 
 For addition only worksheet:
 ```
@@ -55,10 +55,15 @@ or
 ```
 python3 run.py --question_count 100
 ```
-For custom output filename (default is worksheet.pdf):
+Generated PDFs are written to the `output/` directory by default. The directory is created automatically if it does not already exist.
+
+For custom output filename (default is `output/worksheet.pdf`):
 ```
 python3 run.py --output custom-name.pdf
 ```
+This writes the file to `output/custom-name.pdf`. If you pass a path that already includes a directory, that explicit path is used as-is.
+
+If the target PDF already exists, the script prompts you to choose whether to overwrite it, abort, enter a different worksheet name, or automatically append an incremented suffix such as `-1` to the filename.
 For adding a front page with title, name, date, and score fields:  
 Use default title 'Math Practice Worksheet'
 ```

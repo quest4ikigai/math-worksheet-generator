@@ -1,11 +1,17 @@
 import math
+import os
 import unittest
 from io import StringIO
 from unittest.mock import patch
 import random
 
 from run import MathWorksheetGenerator as Mg
+from run import build_incremented_filename
+from run import main
+from run import next_available_output_path
 from run import parse_cli_args
+from run import prompt_for_output_path
+from run import resolve_output_path
 
 class TestStringMethods(unittest.TestCase):
 
@@ -125,6 +131,105 @@ class TestStringMethods(unittest.TestCase):
         self.assertIn('usage:', output)
         self.assertIn('Generate printable math practice worksheets as PDF files.', output)
         self.assertIn('[-h]', output)
+
+    def test_resolve_output_path_uses_output_directory_for_plain_filename(self):
+        self.assertEqual('output/worksheet.pdf', resolve_output_path('worksheet.pdf'))
+
+    def test_resolve_output_path_preserves_explicit_directory(self):
+        self.assertEqual(
+            os.path.join('custom', 'worksheet.pdf'),
+            resolve_output_path(os.path.join('custom', 'worksheet.pdf'))
+        )
+
+    def test_build_incremented_filename_appends_number_before_extension(self):
+        self.assertEqual(
+            os.path.join('output', 'worksheet-2.pdf'),
+            build_incremented_filename(os.path.join('output', 'worksheet.pdf'), 2)
+        )
+
+    def test_next_available_output_path_skips_existing_incremented_names(self):
+        existing_files = {
+            os.path.join('output', 'worksheet.pdf'),
+            os.path.join('output', 'worksheet-1.pdf'),
+            os.path.join('output', 'worksheet-2.pdf'),
+        }
+        self.assertEqual(
+            os.path.join('output', 'worksheet-3.pdf'),
+            next_available_output_path(
+                os.path.join('output', 'worksheet.pdf'),
+                exists_func=existing_files.__contains__,
+            )
+        )
+
+    def test_prompt_for_output_path_returns_original_path_when_missing(self):
+        self.assertEqual(
+            os.path.join('output', 'worksheet.pdf'),
+            prompt_for_output_path(
+                'worksheet.pdf',
+                exists_func=lambda _: False,
+                input_func=lambda _: '',
+                print_func=lambda _: None,
+            )
+        )
+
+    def test_prompt_for_output_path_accepts_overwrite_choice(self):
+        self.assertEqual(
+            os.path.join('output', 'worksheet.pdf'),
+            prompt_for_output_path(
+                'worksheet.pdf',
+                exists_func=lambda _: True,
+                input_func=lambda _: 'o',
+                print_func=lambda _: None,
+            )
+        )
+
+    def test_prompt_for_output_path_aborts_on_abort_choice(self):
+        with self.assertRaisesRegex(SystemExit, 'Aborted without overwriting'):
+            prompt_for_output_path(
+                'worksheet.pdf',
+                exists_func=lambda _: True,
+                input_func=lambda _: 'a',
+                print_func=lambda _: None,
+            )
+
+    def test_prompt_for_output_path_can_change_name(self):
+        responses = iter(['c', 'new-name.pdf'])
+        self.assertEqual(
+            os.path.join('output', 'new-name.pdf'),
+            prompt_for_output_path(
+                'worksheet.pdf',
+                exists_func=lambda path: path == os.path.join('output', 'worksheet.pdf'),
+                input_func=lambda _: next(responses),
+                print_func=lambda _: None,
+            )
+        )
+
+    def test_prompt_for_output_path_can_increment_name(self):
+        existing_files = {
+            os.path.join('output', 'worksheet.pdf'),
+            os.path.join('output', 'worksheet-1.pdf'),
+        }
+        self.assertEqual(
+            os.path.join('output', 'worksheet-2.pdf'),
+            prompt_for_output_path(
+                'worksheet.pdf',
+                exists_func=existing_files.__contains__,
+                input_func=lambda _: 'i',
+                print_func=lambda _: None,
+            )
+        )
+
+    def test_main_writes_to_output_directory_for_default_filename(self):
+        with patch.object(Mg, 'get_list_of_questions', return_value=[]), \
+             patch.object(Mg, 'make_question_page'), \
+             patch.object(Mg, 'make_answer_page'), \
+             patch('run.os.makedirs') as mock_makedirs, \
+             patch('run.prompt_for_output_path', return_value=os.path.join('output', 'worksheet.pdf')), \
+             patch('run.FPDF.output') as mock_output:
+            main('+', 9, 0, 'worksheet.pdf', None)
+
+        mock_makedirs.assert_called_once_with('output', exist_ok=True)
+        mock_output.assert_called_once_with(os.path.join('output', 'worksheet.pdf'))
 
 
 if __name__ == '__main__':
