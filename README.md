@@ -55,6 +55,23 @@ or
 ```
 python3 run.py --question_count 100
 ```
+For selecting a worksheet density preset with `--output-size` (default is `medium`):
+```
+python3 run.py --output-size xsmall
+```
+Available presets:
+- `xsmall`: smallest question font, highest page density
+- `small`: smaller questions with a compact layout
+- `medium`: balanced default layout
+- `large`: larger questions with fewer per page
+- `xlarge`: largest questions with the fewest per page
+
+Examples:
+```
+python3 run.py --type + --output-size small
+python3 run.py --type mix --digits 3 --output-size large
+python3 run.py --type x -q 40 --output-size xlarge
+```
 Generated PDFs are written to the `output/` directory by default. The directory is created automatically if it does not already exist.
 
 For custom output filename (default is `output/worksheet.pdf`):
