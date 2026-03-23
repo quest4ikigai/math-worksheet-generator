@@ -21,7 +21,7 @@ OUTPUT_SIZE_CONFIG = {
     'small': {'font_size': 13, 'cell_height': 8, 'header_gap': 3, 'questions_per_page': 24, 'columns': 6, 'default_question_count': 72},
     'medium': {'font_size': 15, 'cell_height': 10, 'header_gap': 4, 'questions_per_page': 20, 'columns': 5, 'default_question_count': 80},
     'large': {'font_size': 20, 'cell_height': 15, 'header_gap': 5, 'questions_per_page': 12, 'columns': 4, 'default_question_count': 84},
-    'xlarge': {'font_size': 23, 'cell_height': 18, 'header_gap': 6, 'questions_per_page': 8, 'columns': 4, 'default_question_count': 80},
+    'xlarge': {'font_size': 26, 'cell_height': 18, 'header_gap': 6, 'questions_per_page': 8, 'columns': 4, 'default_question_count': 80},
 }
 
 

@@ -113,6 +113,11 @@ class TestStringMethods(unittest.TestCase):
                 )
                 self.assertEqual(expected_columns, g.num_x_cell)
 
+    def test_xlarge_output_size_uses_larger_question_font(self):
+        g = Mg(type_='x', max_number=9, question_count=1, output_size='xlarge')
+        self.assertEqual(26, g.question_font_size)
+        self.assertGreater(g.question_font_size, OUTPUT_SIZE_CONFIG['large']['font_size'])
+
     def test_print_header_section_places_score_on_right(self):
         g = Mg(type_='x', max_number=9, question_count=1)
         with patch.object(g.pdf, 'cell') as mock_cell, \
